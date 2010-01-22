@@ -230,9 +230,12 @@ var eventsModule = createInternalModule('events', function (exports) {
     if (listener instanceof Function) {
       // does not use listeners(), so no side effect of creating _events[type]
       if (!this._events || !this._events.hasOwnProperty(type)) return;
-      var list = this._events[type];
-      if (list.indexOf(listener) < 0) return;
-      list.splice(list.indexOf(listener), 1);
+      var callback_list = this._events[type].callbacks;
+      var catcher_list = this._events[type].catchers;
+      var index = callback_list.indexOf(listener);
+      if (index < 0) return;
+      callback_list.splice(index, 1);
+      catcher_list.splice(index, 1);
     }
     return this;
   };
