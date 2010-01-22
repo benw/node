@@ -214,12 +214,14 @@ var eventsModule = createInternalModule('events', function (exports) {
   process.EventEmitter.prototype.addListener = function (type, listener) {
     if (listener instanceof Function) {
       if (!this._events) this._events = {};
-      if (!this._events.hasOwnProperty(type)) this._events[type] = [];
+      if (!this._events.hasOwnProperty(type)) {
+        this._events[type] = { callbacks: [], catchers: [] };
+      }
       // To avoid recursion in the case that type == "newListeners"! Before
       // adding it to the listeners, first emit "newListeners".
       this.emit("newListener", type, listener);
-      this._events[type].push(listener);
-      listener._exceptionCatcher = process.exceptionCatcher;
+      this._events[type].callbacks.push(listener);
+      this._events[type].catchers.push(process.exceptionCatcher);
     }
     return this;
   };
@@ -237,8 +239,10 @@ var eventsModule = createInternalModule('events', function (exports) {
 
   process.EventEmitter.prototype.listeners = function (type) {
     if (!this._events) this._events = {};
-    if (!this._events.hasOwnProperty(type)) this._events[type] = [];
-    return this._events[type];
+    if (!this._events.hasOwnProperty(type)) {
+      this._events[type] = { callbacks: [], catchers: [] };
+    }
+    return this._events[type].callbacks;
   };
 
   exports.Promise = function () {

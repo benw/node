@@ -24,6 +24,8 @@ Persistent<FunctionTemplate> EventEmitter::constructor_template;
 
 static Persistent<String> events_symbol;
 static Persistent<String> exception_catcher_symbol;
+static Persistent<String> callbacks_symbol;
+static Persistent<String> catchers_symbol;
 
 void EventEmitter::Initialize(Local<FunctionTemplate> ctemplate) {
   HandleScope scope;
@@ -37,6 +39,8 @@ void EventEmitter::Initialize(Local<FunctionTemplate> ctemplate) {
 
   events_symbol = NODE_PSYMBOL("_events");
   exception_catcher_symbol = NODE_PSYMBOL("_exceptionCatcher");
+  callbacks_symbol = NODE_PSYMBOL("callbacks");
+  catchers_symbol = NODE_PSYMBOL("catchers");
 
   // All other prototype methods are defined in events.js
 }
@@ -52,20 +56,29 @@ static bool ReallyEmit(Handle<Object> self,
   Local<Object> events = events_v->ToObject();
 
   Local<Value> listeners_v = events->Get(event);
-  if (!listeners_v->IsArray()) return false;
-  Local<Array> listeners = Local<Array>::Cast(listeners_v);
+  if (!listeners_v->IsObject()) return false;
+  Local<Object> listeners = Local<Object>::Cast(listeners_v);
+  Local<Value> callbacks_v = listeners->Get(callbacks_symbol);
+  Local<Value> catchers_v = listeners->Get(catchers_symbol);
 
-  for (unsigned int i = 0; i < listeners->Length(); i++) {
+  if (!callbacks_v->IsArray() || !catchers_v->IsArray()) return false;
+  Local<Array> callbacks = Local<Array>::Cast(callbacks_v);
+  Local<Array> catchers = Local<Array>::Cast(catchers_v);
+  if (callbacks->Length() != catchers->Length()) return false;
+
+  for (unsigned int i = 0; i < callbacks->Length(); i++) {
     HandleScope scope;
 
-    Local<Value> listener_v = listeners->Get(Integer::New(i));
-    if (!listener_v->IsFunction()) continue;
-    Local<Function> listener = Local<Function>::Cast(listener_v);
-    SetProcessExceptionCatcher(listener->Get(exception_catcher_symbol));
+    Local<Value> callback_v = callbacks->Get(Integer::New(i));
+    if (!callback_v->IsFunction()) continue;
+    Local<Function> callback = Local<Function>::Cast(callback_v);
+
+    Local<Value> catcher = catchers->Get(Integer::New(i));
+    SetProcessExceptionCatcher(catcher);
 
     TryCatch try_catch;
 
-    listener->Call(self, argc, argv);
+    callback->Call(self, argc, argv);
 
     if (try_catch.HasCaught()) {
       FatalException(try_catch);
