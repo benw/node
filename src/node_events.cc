@@ -81,7 +81,7 @@ static bool ReallyEmit(Handle<Object> self,
     callback->Call(self, argc, argv);
 
     if (try_catch.HasCaught()) {
-      FatalException(try_catch);
+      FatalException(self, try_catch);
       return false;
     }
   }

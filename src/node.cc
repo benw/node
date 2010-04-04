@@ -830,7 +830,7 @@ bool SetProcessExceptionCatcher(Handle<Value> value) {
 static int exception_catcher_counter = 0;
 static int uncaught_exception_counter = 0;
 
-void FatalException(TryCatch &try_catch) {
+void FatalException(Handle<Object> self, TryCatch &try_catch) {
   HandleScope scope;
 
   // First try process.exceptionCatcher --
@@ -845,9 +845,9 @@ void FatalException(TryCatch &try_catch) {
 
     Local<Function> catcher = Local<Function>::Cast(catcher_v);
     Local<Value> argv[1] = { try_catch.Exception() };
-    Local<Value> ret = catcher->Call(process, 1, argv);
+    Local<Value> ret = catcher->Call(self, 1, argv);
     if (inner_try_catch.HasCaught()) {
-      FatalException(inner_try_catch);
+      FatalException(self, inner_try_catch);
     }
     exception_catcher_counter--;
     return;
