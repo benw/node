@@ -34,6 +34,7 @@ using v8::Object;
 using v8::Arguments;
 using v8::ThrowException;
 using v8::TryCatch;
+using v8::Message;
 using v8::String;
 using v8::Exception;
 using v8::Local;
@@ -359,6 +360,19 @@ Handle<Value> WrappedScript::EvalMachine(const Arguments& args) {
     if (script.IsEmpty()) {
       // FIXME UGLY HACK TO DISPLAY SYNTAX ERRORS.
       if (display_error) DisplayExceptionLine(try_catch);
+
+      // SyntaxError.fileName and lineNumber are non-standard but useful.
+      // They are not provided by v8, so we fill them in here.
+      Handle<Message> message = try_catch.Message();
+      Local<Value> exception = try_catch.Exception();
+      if (exception->IsObject()) {
+        Local<Object> syntaxerror = Local<Object>::Cast(exception);
+
+        syntaxerror->Set(String::NewSymbol("fileName"),
+                            message->GetScriptResourceName());
+        syntaxerror->Set(String::NewSymbol("lineNumber"),
+                            Integer::New(message->GetLineNumber()));
+      }
 
       // Hack because I can't get a proper stacktrace on SyntaxError
       return try_catch.ReThrow();
