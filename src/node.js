@@ -172,6 +172,15 @@
   startup.processNextTick = function() {
     var nextTickQueue = [];
 
+    // local copy of lib/async_catch.js
+    function async_catch_wrap(callback) {
+      var catcher = process.exceptionCatcher;
+      return function () {
+        process.exceptionCatcher = catcher;
+        callback.apply(this, arguments);
+      };
+    }
+
     process._tickCallback = function() {
       var l = nextTickQueue.length;
       if (l === 0) return;
@@ -193,7 +202,7 @@
     };
 
     process.nextTick = function(callback) {
-      nextTickQueue.push(callback);
+      nextTickQueue.push(async_catch_wrap(callback));
       process._needTickCallback();
     };
   };
