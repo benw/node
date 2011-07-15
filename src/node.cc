@@ -1783,10 +1783,47 @@ static void OnFatalError(const char* location, const char* message) {
   exit(1);
 }
 
+static Persistent<String>& ExceptionCatcherSymbol() {
+  static Persistent<String> exception_catcher_symbol;
+  if (exception_catcher_symbol.IsEmpty()) {
+    exception_catcher_symbol = NODE_PSYMBOL("exceptionCatcher");
+  }
+  return exception_catcher_symbol;
+}
+
+Local<Value> GetProcessExceptionCatcher() {
+  return process->Get(ExceptionCatcherSymbol());
+}
+
+bool SetProcessExceptionCatcher(Handle<Value> value) {
+  return process->Set(ExceptionCatcherSymbol(), value);
+}
+
+static int exception_catcher_counter = 0;
 static int uncaught_exception_counter = 0;
 
 void FatalException(TryCatch &try_catch) {
   HandleScope scope;
+
+  // First try process.exceptionCatcher --
+  // if it's a function, and we're not already in it.
+  Local<Value> catcher_v = GetProcessExceptionCatcher();
+  if (0 == exception_catcher_counter && catcher_v->IsFunction()) {
+    exception_catcher_counter++;
+    // Call process.exceptionCatcher(exception). If it throws, FatalException
+    // is reentered with nonzero exception_catcher_counter, and we drop
+    // through to the "uncaughtException" event below, or barf.
+    TryCatch inner_try_catch;
+
+    Local<Function> catcher = Local<Function>::Cast(catcher_v);
+    Local<Value> argv[1] = { try_catch.Exception() };
+    Local<Value> ret = catcher->Call(process, 1, argv);
+    if (inner_try_catch.HasCaught()) {
+      FatalException(inner_try_catch);
+    }
+    exception_catcher_counter--;
+    return;
+  }
 
   // Check if uncaught_exception_counter indicates a recursion
   if (uncaught_exception_counter > 0) {
