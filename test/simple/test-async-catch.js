@@ -22,7 +22,8 @@
 var common = require('../common');
 var assert = require('assert');
 
-// async_func(callback) should do something async and then call callback()
+// async_func(callback) should exercise an async pathway
+// that arranges for callback to be called after returning.
 function testCatcher(name, async_func, done) {
   console.log(name + ':');
   process.exceptionCatcher = function (e) {
@@ -32,18 +33,28 @@ function testCatcher(name, async_func, done) {
     done();
   };
   async_func(function () {
-      // This should be called after testCatcher returns
+      // This should be called after testCatcher returns.
       console.log(name + ': throwing');
       throw new Error(name);
   });
-  // This tests that 
+  // This tests that exceptionCatcher is indeed
+  // restored by the caller of callback.
   process.exceptionCatcher = undefined;
 }
 
 var async_funcs = {
   'nextTick': function (callback) {
     process.nextTick(callback);
-  }
+  },
+  'setTimeout': function (callback) {
+    setTimeout(callback, 10);
+  },
+  'setInterval': function (callback) {
+    var timer = setInterval(function () {
+      clearInterval(timer);
+      callback();
+    }, 10);
+  },
 };
 var names = Object.keys(async_funcs);
 
@@ -52,7 +63,7 @@ function run(i, done) {
   testCatcher(names[i], async_funcs[names[i]], function () {
     i++;
     if (i < names.length) {
-      run(i);
+      run(i, done);
     } else {
       done();
     }

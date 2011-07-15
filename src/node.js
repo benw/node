@@ -124,14 +124,27 @@
     global.Buffer = NativeModule.require('buffer').Buffer;
   };
 
+  function wrapCallback(callback) {
+    if ('function' !== typeof callback) {
+      return callback;
+    }
+    var catcher = process.exceptionCatcher;
+    return function () {
+      process.exceptionCatcher = catcher;
+      callback.apply(this, arguments);
+    };
+  }
+
   startup.globalTimeouts = function() {
     global.setTimeout = function() {
       var t = NativeModule.require('timers');
+      arguments[0] = wrapCallback(arguments[0]);
       return t.setTimeout.apply(this, arguments);
     };
 
     global.setInterval = function() {
       var t = NativeModule.require('timers');
+      arguments[0] = wrapCallback(arguments[0]);
       return t.setInterval.apply(this, arguments);
     };
 
@@ -172,15 +185,6 @@
   startup.processNextTick = function() {
     var nextTickQueue = [];
 
-    // local copy of lib/async_catch.js
-    function async_catch_wrap(callback) {
-      var catcher = process.exceptionCatcher;
-      return function () {
-        process.exceptionCatcher = catcher;
-        callback.apply(this, arguments);
-      };
-    }
-
     process._tickCallback = function() {
       var l = nextTickQueue.length;
       if (l === 0) return;
@@ -202,7 +206,7 @@
     };
 
     process.nextTick = function(callback) {
-      nextTickQueue.push(async_catch_wrap(callback));
+      nextTickQueue.push(wrapCallback(callback));
       process._needTickCallback();
     };
   };
