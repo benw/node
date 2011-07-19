@@ -124,14 +124,16 @@
     global.Buffer = NativeModule.require('buffer').Buffer;
   };
 
+  // local variant of require('events').wrapCallback
   function wrapCallback(callback) {
-    if ('function' !== typeof callback) {
+    var catcher = process.exceptionCatcher;
+    if (!catcher || 'function' !== typeof callback) {
       return callback;
     }
-    var catcher = process.exceptionCatcher;
     return function () {
       process.exceptionCatcher = catcher;
       callback.apply(this, arguments);
+      delete process.exceptionCatcher;
     };
   }
 
