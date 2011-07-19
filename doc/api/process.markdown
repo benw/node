@@ -49,6 +49,8 @@ handling.  Using try / catch in your program will give you more control over
 your program's flow.  Especially for server programs that are designed to
 stay running forever, `uncaughtException` can be a useful safety mechanism.
 
+See also process.exceptionCatcher
+
 
 ### Signal Events
 
@@ -330,3 +332,40 @@ given, otherwise returns the current mask.
 ### process.uptime()
 
 Number of seconds Node has been running.
+
+
+### process.exceptionCatcher
+
+`function (err) { }`
+
+If `process.exceptionCatcher` is set to a function, it is called when an
+exception bubbles all the way back to the event loop. This mechanism
+intercepts exceptions which would otherwise cause the `uncaughtException`
+event to be emitted or the process to print a stack trace and exit.
+(Those actions will still occur if the `process.exceptionCatcher` function
+throws an exception.)
+
+All API functions that accept a callback argument save the current value
+of `process.exceptionCatcher`, and restore it before calling the callback.
+This acts as a context variable that carries exception handling through
+a chain of asynchronous callbacks. In asynchronous programming this can
+be more useful than try/catch blocks, which only catch exceptions that
+are thrown before the callee returns.
+
+Example of using `process.exceptionCatcher`:
+
+    process.exceptionCatcher = function (err) {
+      console.log('Caught exception: ' + err);
+    };
+
+    setTimeout(function () {
+      console.log('This will still run.');
+      // Intentionally cause an exception, but don't catch it.
+      nonexistentFunc();
+    }, 500);
+
+    // It does not matter if exceptionCatcher changes
+    // before the timeout callback runs, because it will
+    // restore the exceptionCatcher that existed when
+    // setTimeout was called.
+    delete process.exceptionCatcher;

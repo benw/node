@@ -71,8 +71,9 @@ that to be increased. Set to zero for unlimited.
 
 #### emitter.listeners(event)
 
-Returns an array of listeners for the specified event. This array can be
-manipulated, e.g. to remove listeners.
+Returns an array of listeners for the specified event.
+Changes made to the returned array have no effect on the
+subscribed listeners.
 
     server.on('connection', function (stream) {
       console.log('someone connected!');
